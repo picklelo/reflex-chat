@@ -26,7 +26,9 @@ async def process(chat, question: str):
 
     # Set the processing flag.
     chat.processing = True
-    yield
+
+    # TODO: We need an `rx.scroll_to` function to simplify this.
+    yield rx.call_script(f"document.getElementById('message-{len(chat.messages) - 1}').scrollIntoView();")
 
     # Start a new session to answer the question.
     session = client.chat.completions.create(
@@ -34,9 +36,10 @@ async def process(chat, question: str):
         messages=chat.get_value(chat.messages),
         stream=True,
     )
-    
+
     # Add an empty answer to the chat history.
     chat.messages.append({"role": "assistant", "content": ""})
+    yield rx.call_script(f"document.getElementById('message-{len(chat.messages) - 1}').scrollIntoView();")
 
     # Stream the results, yielding after every word.
     for item in session:
@@ -51,7 +54,11 @@ async def process(chat, question: str):
 
 
 def index() -> rx.Component:
-    return chat(process=process)
+    return rx.box(
+        chat(process=process),
+        rx.el.iframe(src="https://chat.reflex.run", width="100%", height="400px"),
+        width="100%",
+    )
 
 
 # Add state and page to the app.

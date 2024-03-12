@@ -20,6 +20,9 @@ class Chat(rx.Base):
     # Whether we are processing the question.
     processing: bool = False
 
+    # The id of the chat component.
+    _id: int = 0
+
     # Dynamic creation of per-component State classes
     _instances: ClassVar[int] = 0
 
@@ -28,14 +31,17 @@ class Chat(rx.Base):
         cls._instances += 1
         return type(
             f"{cls.__name__}_n{cls._instances}", (cls, rx.State), {}
-        ).component(process, **props)
+        ).component(process, _id=cls._instances, **props)
 
     @classmethod
     def component(cls, process, **props) -> rx.Component:
         cls.process = process
         return rx.vstack(
-            rx.foreach(cls.messages, chat_bubble),
+            rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
+            rx.spacer(),
             action_bar(cls),
+            height=props.pop("height", "400px"),
+            overflow="auto",
             width="100%",
             padding="1em",
             background_color=rx.color("mauve", 1),
@@ -45,7 +51,8 @@ class Chat(rx.Base):
 
     async def process_question(self, form_data: dict[str, str]):
         # Get the question from the form
-        question = form_data[str(hash(type(self)))]
+        # question = form_data[str(hash(type(self)))]
+        question = form_data["question"]
 
         # Check if the question is empty
         if question == "":
@@ -61,7 +68,7 @@ message_style = dict(
     max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
 )
 
-def chat_bubble(message: str) -> rx.Component:
+def chat_bubble(message: str, idx: int = 0) -> rx.Component:
     """Display a single chat bubble.
 
     Args:
@@ -80,6 +87,7 @@ def chat_bubble(message: str) -> rx.Component:
                 color=rx.cond(message["role"] == "user", rx.color("mauve", 12), rx.color("accent", 12)),
                 **message_style,
             ),
+            id=f"message-{idx}",
             text_align=rx.cond(message["role"] == "user", "right", "left"),
             margin_top="1em",
             width="100%",
@@ -93,7 +101,8 @@ def action_bar(State) -> rx.Component:
         rx.hstack(
             rx.chakra.input(
                 placeholder="Type something...",
-                id=str(hash(State)),
+                # id=str(hash(State)),
+                id="question",
                 width="100%",
             ),
             rx.spacer(),
