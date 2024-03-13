@@ -6,7 +6,7 @@ import reflex as rx
 
 
 class Chat(rx.Base):
-    """"""
+    """A chat component with state."""
 
     # The full chat history.
     messages: list[dict[str, str]] = [{
@@ -31,21 +31,45 @@ class Chat(rx.Base):
     def component(cls, process, **props) -> rx.Component:
         cls.process = process
         return rx.vstack(
-            rx.box(
-                rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
-                id=f"chatbox-{cls.__name__}",
-                overflow="auto",
+            rx.link(
+                rx.hstack(
+                    "Built with ",
+                    rx.image(src="/Reflex.svg"),
+                    align="center",
+                    background_color=rx.color("accent", 4),
+                    border_bottom=f"1px solid {rx.color('accent', 6)}",
+                    width="100%",
+                    padding="1em",
+                ),
                 width="100%",
-                padding_bottom="2em",
+                href="https://reflex.dev",
+                _hover={
+                    "text_decoration": "none",
+                },
+                color=rx.color("mauve", 12),
+                is_external=True,
             ),
             rx.spacer(),
-            action_bar(cls),
+            rx.vstack(
+                rx.box(
+                    rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
+                    id=f"chatbox-{cls.__name__}",
+                    overflow="auto",
+                    width="100%",
+                    padding_bottom="2em",
+                ),
+                rx.spacer(),
+                action_bar(cls),
+                padding=props.pop("padding", "1em"),
+                background_color=props.pop("background_color", rx.color("mauve", 1)),
+                border=props.pop("border", f"1px solid {rx.color('mauve', 4)}"),
+                height="100%",
+                width="100%",
+                **props,
+            ),
+            spacing="0",
             height="100%",
             width="100%",
-            padding=props.pop("padding", "1em"),
-            background_color=props.pop("background_color", rx.color("mauve", 1)),
-            border=props.pop("border", f"1px solid {rx.color('mauve', 4)}"),
-            **props
         )
 
     def scroll_to_bottom(self):
