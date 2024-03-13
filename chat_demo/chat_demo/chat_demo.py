@@ -15,31 +15,18 @@ class State(rx.State):
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-async def process(chat, question: str):
+async def process(chat):
     """Get the response from the API.
 
     Args:
         form_data: A dict with the current question.
     """
-    # Add the question to the list of questions.
-    chat.messages.append({"role": "user", "content": question})
-
-    # Set the processing flag.
-    chat.processing = True
-
-    # TODO: We need an `rx.scroll_to` function to simplify this.
-    yield rx.call_script(f"document.getElementById('message-{len(chat.messages) - 1}').scrollIntoView();")
-
     # Start a new session to answer the question.
     session = client.chat.completions.create(
         model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
         messages=chat.get_value(chat.messages),
         stream=True,
     )
-
-    # Add an empty answer to the chat history.
-    chat.messages.append({"role": "assistant", "content": ""})
-    yield rx.call_script(f"document.getElementById('message-{len(chat.messages) - 1}').scrollIntoView();")
 
     # Stream the results, yielding after every word.
     for item in session:
@@ -49,15 +36,11 @@ async def process(chat, question: str):
             chat.messages[-1]["content"] += answer_text or ""
             yield
 
-    # Toggle the processing flag.
-    chat.processing = False
-
-
 def index() -> rx.Component:
     return rx.box(
         chat(process=process),
-        rx.el.iframe(src="https://chat.reflex.run", width="100%", height="400px"),
-        width="100%",
+        width="100vw",
+        height="100vh",
     )
 
 

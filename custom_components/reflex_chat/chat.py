@@ -1,4 +1,4 @@
-"""Reflex custom component Chat."""
+"""A custom component for a chat interface."""
 
 from typing import ClassVar
 
@@ -6,10 +6,7 @@ import reflex as rx
 
 
 class Chat(rx.Base):
-    """The app state."""
-
-    # The current message
-    current_message: str
+    """"""
 
     # The full chat history.
     messages: list[dict[str, str]] = [{
@@ -19,9 +16,6 @@ class Chat(rx.Base):
 
     # Whether we are processing the question.
     processing: bool = False
-
-    # The id of the chat component.
-    _id: int = 0
 
     # Dynamic creation of per-component State classes
     _instances: ClassVar[int] = 0
@@ -37,36 +31,55 @@ class Chat(rx.Base):
     def component(cls, process, **props) -> rx.Component:
         cls.process = process
         return rx.vstack(
-            rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
+            rx.box(
+                rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
+                id=f"chatbox-{cls.__name__}",
+                overflow="auto",
+                width="100%",
+                padding_bottom="2em",
+            ),
             rx.spacer(),
             action_bar(cls),
-            height=props.pop("height", "400px"),
-            overflow="auto",
+            height="100%",
             width="100%",
-            padding="1em",
-            background_color=rx.color("mauve", 1),
-            border=f"1px solid {rx.color('mauve', 4)}",
+            padding=props.pop("padding", "1em"),
+            background_color=props.pop("background_color", rx.color("mauve", 1)),
+            border=props.pop("border", f"1px solid {rx.color('mauve', 4)}"),
             **props
         )
 
-    async def process_question(self, form_data: dict[str, str]):
+    def scroll_to_bottom(self):
+        return rx.call_script(
+            f"""
+    var element = document.getElementById('chatbox-{type(self).__name__}');
+    element.scrollTop = element.scrollHeight;
+"""
+        )
+
+    async def process_question(self):
+        async for value in self.process():
+            yield value
+
+        self.processing = False
+
+        # Scroll to the last message.
+        yield self.scroll_to_bottom()
+
+    def submit_message(self, form_data: dict[str, str]):
         # Get the question from the form
-        # question = form_data[str(hash(type(self)))]
-        question = form_data["question"]
+        question = form_data[self.__class__.__name__]
 
         # Check if the question is empty
         if question == "":
             return
 
-        async for value in self.process(question):
-            yield value
+        # Add the question to the list of questions.
+        self.messages.append({"role": "user", "content": question})
+        self.messages.append({"role": "assistant", "content": ""})
+        self.processing = True
+        yield self.scroll_to_bottom()
+        yield type(self).process_question
 
-message_style = dict(
-    display="inline-block",
-    padding_x="1em",
-    border_radius="8px",
-    max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
-)
 
 def chat_bubble(message: str, idx: int = 0) -> rx.Component:
     """Display a single chat bubble.
@@ -85,7 +98,10 @@ def chat_bubble(message: str, idx: int = 0) -> rx.Component:
                 message["content"],
                 background_color=rx.cond(message["role"] == "user", rx.color("mauve", 4), rx.color("accent", 4)),
                 color=rx.cond(message["role"] == "user", rx.color("mauve", 12), rx.color("accent", 12)),
-                **message_style,
+                display="inline-block",
+                padding_x="1em",
+                border_radius="8px",
+                max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
             ),
             id=f"message-{idx}",
             text_align=rx.cond(message["role"] == "user", "right", "left"),
@@ -99,23 +115,23 @@ def action_bar(State) -> rx.Component:
     """The action bar to send a new message."""
     return rx.form(
         rx.hstack(
-            rx.chakra.input(
-                placeholder="Type something...",
-                # id=str(hash(State)),
-                id="question",
+            rx.input.root(
+                rx.input.input(
+                    placeholder="Type something...",
+                    id=State.__name__,
+                ),
                 width="100%",
             ),
             rx.spacer(),
             rx.button(
                 "Send",
                 type="submit",
-                size="3",
             ),
             align_items="center",
             width="100%",
         ),
         width="100%",
-        on_submit=State.process_question,
+        on_submit=State.submit_message,
         reset_on_submit=True,
     )
 
