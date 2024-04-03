@@ -5,7 +5,7 @@ from typing import ClassVar
 import reflex as rx
 
 
-class Chat(rx.Base):
+class Chat(rx.ComponentState):
     """A chat component with state."""
 
     # The full chat history.
@@ -17,27 +17,22 @@ class Chat(rx.Base):
     # Whether we are processing the question.
     processing: bool = False
 
-    # Dynamic creation of per-component State classes
-    _instances: ClassVar[int] = 0
+    @classmethod
+    def create(self, process, **props):
+        component = super().create(**props)
+        component.State.process = process
+        return component
 
     @classmethod
-    def create(cls, process, **props) -> rx.Component:
-        cls._instances += 1
-        return type(
-            f"{cls.__name__}_n{cls._instances}", (cls, rx.State), {}
-        ).component(process, _id=cls._instances, **props)
-
-    @classmethod
-    def component(cls, process, **props) -> rx.Component:
-        cls.process = process
+    def get_component(cls, **props) -> rx.Component:
         return rx.vstack(
             rx.link(
                 rx.hstack(
                     "Built with ",
                     rx.image(src="/Reflex.svg"),
                     align="center",
-                    background_color=rx.color("accent", 4),
-                    border_bottom=f"1px solid {rx.color('accent', 6)}",
+                    background_color=rx.color("purple", 4),
+                    border_bottom=f"1px solid {rx.color('purple', 6)}",
                     width="100%",
                     padding="1em",
                 ),
@@ -120,8 +115,8 @@ def chat_bubble(message: str, idx: int = 0) -> rx.Component:
         rx.box(
             rx.markdown(
                 message["content"],
-                background_color=rx.cond(message["role"] == "user", rx.color("mauve", 4), rx.color("accent", 4)),
-                color=rx.cond(message["role"] == "user", rx.color("mauve", 12), rx.color("accent", 12)),
+                background_color=rx.cond(message["role"] == "user", rx.color("mauve", 4), rx.color("purple", 4)),
+                color=rx.cond(message["role"] == "user", rx.color("mauve", 12), rx.color("purple", 12)),
                 display="inline-block",
                 padding_x="1em",
                 border_radius="8px",
