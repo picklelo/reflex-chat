@@ -7,13 +7,13 @@ import reflex as rx
 from reflex_chat import chat
 from openai import OpenAI
 
-filename = f"{config.app_name}/{config.app_name}.py"
 
 class State(rx.State):
     pass
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 async def process(chat):
     """Get the response from the API.
@@ -24,7 +24,7 @@ async def process(chat):
     # Start a new session to answer the question.
     session = client.chat.completions.create(
         model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
-        messages=chat.get_value(chat.messages),
+        messages=chat.chat_history(),
         stream=True,
     )
 
@@ -32,9 +32,9 @@ async def process(chat):
     for item in session:
         if hasattr(item.choices[0].delta, "content"):
             answer_text = item.choices[0].delta.content
-            # Ensure answer_text is not None before concatenation
-            chat.messages[-1]["content"] += answer_text or ""
+            chat.append_to_chat_history(answer_text)
             yield
+
 
 def index() -> rx.Component:
     return rx.box(

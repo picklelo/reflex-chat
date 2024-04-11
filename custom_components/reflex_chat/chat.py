@@ -9,10 +9,12 @@ class Chat(rx.ComponentState):
     """A chat component with state."""
 
     # The full chat history.
-    messages: list[dict[str, str]] = [{
-        "role": "system",
-        "content": "You are a friendly chatbot named Reflex. Respond in markdown."
-    }]
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
+        }
+    ]
 
     # Whether we are processing the question.
     processing: bool = False
@@ -26,28 +28,13 @@ class Chat(rx.ComponentState):
     @classmethod
     def get_component(cls, **props) -> rx.Component:
         return rx.vstack(
-            rx.link(
-                rx.hstack(
-                    "Built with ",
-                    rx.image(src="/Reflex.svg"),
-                    align="center",
-                    background_color=rx.color("purple", 4),
-                    border_bottom=f"1px solid {rx.color('purple', 6)}",
-                    width="100%",
-                    padding="1em",
-                ),
-                width="100%",
-                href="https://reflex.dev",
-                _hover={
-                    "text_decoration": "none",
-                },
-                color=rx.color("mauve", 12),
-                is_external=True,
-            ),
+            rx.box(rx.logo()),
             rx.spacer(),
             rx.vstack(
                 rx.box(
-                    rx.foreach(cls.messages, lambda message, i: chat_bubble(message, i)),
+                    rx.foreach(
+                        cls.messages, lambda message, i: chat_bubble(message, i)
+                    ),
                     id=f"chatbox-{cls.__name__}",
                     overflow="auto",
                     width="100%",
@@ -65,6 +52,7 @@ class Chat(rx.ComponentState):
             spacing="0",
             height="100%",
             width="100%",
+            align="start",
         )
 
     def scroll_to_bottom(self):
@@ -99,6 +87,33 @@ class Chat(rx.ComponentState):
         yield self.scroll_to_bottom()
         yield type(self).process_question
 
+    def last_question(self) -> str:
+        """Return the last submitted user question.
+
+        Returns:
+            The last submitted user question.
+        """
+        for message in reversed(self.messages):
+            if message["role"] == "user":
+                return message["content"]
+        return ""
+
+    def chat_history(self) -> list[dict[str, str]]:
+        """Return the chat history including the last submitted user question.
+
+        Returns:
+            The chat history as a list of dictionaries.
+        """
+        return self.get_value(self.messages)
+
+    def append_to_chat_history(self, answer: str):
+        """Append an answer to the chat history.
+
+        Args:
+            answer: The answer to add to the chat history.
+        """
+        self.messages[-1]["content"] += answer or ""
+
 
 def chat_bubble(message: str, idx: int = 0) -> rx.Component:
     """Display a single chat bubble.
@@ -115,8 +130,16 @@ def chat_bubble(message: str, idx: int = 0) -> rx.Component:
         rx.box(
             rx.markdown(
                 message["content"],
-                background_color=rx.cond(message["role"] == "user", rx.color("mauve", 4), rx.color("purple", 4)),
-                color=rx.cond(message["role"] == "user", rx.color("mauve", 12), rx.color("purple", 12)),
+                background_color=rx.cond(
+                    message["role"] == "user",
+                    rx.color("mauve", 4),
+                    rx.color("accent", 4),
+                ),
+                color=rx.cond(
+                    message["role"] == "user",
+                    rx.color("mauve", 12),
+                    rx.color("accent", 12),
+                ),
                 display="inline-block",
                 padding_x="1em",
                 border_radius="8px",
@@ -126,7 +149,7 @@ def chat_bubble(message: str, idx: int = 0) -> rx.Component:
             text_align=rx.cond(message["role"] == "user", "right", "left"),
             margin_top="1em",
             width="100%",
-        )
+        ),
     )
 
 
@@ -153,5 +176,6 @@ def action_bar(State) -> rx.Component:
         on_submit=State.submit_message,
         reset_on_submit=True,
     )
+
 
 chat = Chat.create
