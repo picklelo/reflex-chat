@@ -1,32 +1,23 @@
 [build-system]
-requires = [
-    "setuptools",
-    "wheel",
-]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-chat"
-version = "0.0.1a3"
+version = "0.0.1a5"
 description = "Reflex custom component chat"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8"
-authors = [{ name = "Your Name", email = "YOUREMAIL@domain.com" }]
-keywords = [
-    "reflex",
-    "reflex-custom-components"]
+authors = [{ name = "", email = "nikhil@reflex.dev" }]
+keywords = ["reflex","reflex-custom-components"]
 
-dependencies = [
-    "reflex>=0.4.2"
-]
+dependencies = ["reflex>=0.4.7"]
 
-classifiers = [
-  "Development Status :: 4 - Beta",
-]
+classifiers = ["Development Status :: 4 - Beta"]
 
 [project.urls]
-Homepage = "https://github.com"
+Homepage = "https://github.com/picklelo/reflex-chat"
 
 [project.optional-dependencies]
 dev = ["build", "twine"]
