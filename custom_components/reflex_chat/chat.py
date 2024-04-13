@@ -1,23 +1,31 @@
 """A custom component for a chat interface."""
 
-from typing import ClassVar
-
 import reflex as rx
 
 
 class Chat(rx.ComponentState):
     """A chat component with state."""
 
-    # The full chat history.
-    messages: list[dict[str, str]] = [
+    # The full chat history, in the OpenAI format.
+    messages2: list[dict[str, str]] = [
         {
             "role": "system",
             "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
         }
     ]
 
-    # Whether we are processing the question.
+    # Whether we are processing a message.
     processing: bool = False
+
+    @rx.var
+    def messages(self) -> list[dict[str, str]]:
+        """Return the chat history including the last submitted user message.
+
+        Returns:
+            The chat history as a list of dictionaries.
+        """
+        # Convert to a list before sending.
+        return self.get_value(self.messages2)
 
     @classmethod
     def create(self, process, **props):
@@ -26,16 +34,25 @@ class Chat(rx.ComponentState):
         return component
 
     @classmethod
+    def get_id(cls):
+        return f"chatbox-{cls.get_full_name()}"
+
+    @classmethod
     def get_component(cls, **props) -> rx.Component:
         return rx.vstack(
-            rx.box(rx.logo()),
+            rx.box(
+                rx.logo(),
+                justify="left",
+                background_color=rx.color("accent", 4),
+                width="100%",
+            ),
             rx.spacer(),
             rx.vstack(
                 rx.box(
                     rx.foreach(
                         cls.messages, lambda message, i: chat_bubble(message, i)
                     ),
-                    id=f"chatbox-{cls.__name__}",
+                    id=f"chatbox-{cls.get_full_name()}",
                     overflow="auto",
                     width="100%",
                     padding_bottom="2em",
@@ -58,12 +75,12 @@ class Chat(rx.ComponentState):
     def scroll_to_bottom(self):
         return rx.call_script(
             f"""
-    var element = document.getElementById('chatbox-{type(self).__name__}');
+    var element = document.getElementById({f"chatbox-{self.get_full_name()}"}');
     element.scrollTop = element.scrollHeight;
 """
         )
 
-    async def process_question(self):
+    async def process_message(self):
         async for value in self.process():
             yield value
 
@@ -73,46 +90,39 @@ class Chat(rx.ComponentState):
         yield self.scroll_to_bottom()
 
     def submit_message(self, form_data: dict[str, str]):
-        # Get the question from the form
-        question = form_data[self.__class__.__name__]
+        # Get the message from the form
+        message = form_data[self.__class__.__name__]
 
-        # Check if the question is empty
-        if question == "":
+        # Check if the message is empty
+        if message == "":
             return
 
-        # Add the question to the list of questions.
-        self.messages.append({"role": "user", "content": question})
-        self.messages.append({"role": "assistant", "content": ""})
+        # Add the message to the list of messages.
+        self.messages2.append({"role": "user", "content": message})
+        self.messages2.append({"role": "assistant", "content": ""})
         self.processing = True
         yield self.scroll_to_bottom()
-        yield type(self).process_question
+        yield type(self).process_message
 
-    def last_question(self) -> str:
-        """Return the last submitted user question.
+    @rx.var
+    def last_user_message(self) -> str:
+        """Return the last submitted user message.
 
         Returns:
-            The last submitted user question.
+            The last submitted user message.
         """
-        for message in reversed(self.messages):
+        for message in reversed(self.messages2):
             if message["role"] == "user":
                 return message["content"]
         return ""
 
-    def chat_history(self) -> list[dict[str, str]]:
-        """Return the chat history including the last submitted user question.
-
-        Returns:
-            The chat history as a list of dictionaries.
-        """
-        return self.get_value(self.messages)
-
-    def append_to_chat_history(self, answer: str):
-        """Append an answer to the chat history.
+    def append_to_response(self, answer: str):
+        """Append to the last answer in the chat history.
 
         Args:
             answer: The answer to add to the chat history.
         """
-        self.messages[-1]["content"] += answer or ""
+        self.messages2[-1]["content"] += answer or ""
 
 
 def chat_bubble(message: str, idx: int = 0) -> rx.Component:
@@ -122,7 +132,7 @@ def chat_bubble(message: str, idx: int = 0) -> rx.Component:
         message: The message to display.
 
     Returns:
-        A component displaying the question/answer pair.
+        A component displaying the message/answer pair.
     """
     return rx.cond(
         message["role"] == "system",

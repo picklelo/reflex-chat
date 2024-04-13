@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-chat"
-version = "0.0.1a5"
+version = "0.0.1a6"
 description = "Reflex custom component chat"
 readme = "README.md"
 license = { text = "Apache-2.0" }
