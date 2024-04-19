@@ -1,48 +1,78 @@
 """A custom component for a chat interface."""
+from __future__ import annotations
+
+from typing import Callable, Generator, Type
 
 import reflex as rx
+from .api import default_process
+from .components import chat_bubble, action_bar
 
 
 class Chat(rx.ComponentState):
     """A chat component with state."""
 
     # The full chat history, in the OpenAI format.
-    messages2: list[dict[str, str]] = [
-        {
-            "role": "system",
-            "content": "You are a friendly chatbot named Reflex. Respond in markdown.",
-        }
-    ]
+    messages: list[dict[str, str]] = []
 
     # Whether we are processing a message.
     processing: bool = False
 
-    @rx.var
-    def messages(self) -> list[dict[str, str]]:
+    def get_messages(self) -> list[dict[str, str]]:
         """Return the chat history including the last submitted user message.
 
         Returns:
             The chat history as a list of dictionaries.
         """
         # Convert to a list before sending.
-        return self.get_value(self.messages2)
-
-    @classmethod
-    def create(self, process, **props):
-        component = super().create(**props)
-        component.State.process = process
-        return component
+        return self.get_value(self.messages)
 
     @classmethod
     def get_id(cls):
         return f"chatbox-{cls.get_full_name()}"
 
     @classmethod
+    def create(
+        cls,
+        initial_messages: list[dict[str, str]] | None = None,
+        process: Callable[[Chat], Generator] | None = default_process,
+        logo: rx.Component | None = rx.logo(),
+        chat_bubble: Callable[[Type[Chat]], rx.Component] | None = chat_bubble,
+        action_bar: Callable[[Type[Chat]], rx.Component] | None = action_bar,
+        **props,
+    ):
+        """Create a chat component.
+
+        Args:
+            process: The function to process the messages.
+            logo: A component to display in the chat header.
+            chat_bubble: A function to display a chat bubble.
+            action_bar: A function to display the action bar.
+            **props: Additional properties.
+
+        Returns:
+            A chat component.
+        """
+        # Set the initial value of the State var.
+        if initial_messages is not None:
+            # Update the pydantic model to use the initial value as default.
+            cls.__fields__["messages"].default = initial_messages
+        return super().create(
+            process=process,
+            logo=logo,
+            chat_bubble=chat_bubble,
+            action_bar=action_bar,
+            **props,
+        )
+
+    @classmethod
     def get_component(cls, **props) -> rx.Component:
+        cls.process = props.pop("process", default_process)
+        chat_bubble = props.pop("chat_bubble", lambda message, i: rx.fragment())
+        action_bar = props.pop("action_bar", lambda _: rx.fragment())
+
         return rx.vstack(
             rx.box(
-                rx.logo(),
-                justify="left",
+                props.pop("logo", rx.fragment()),
                 background_color=rx.color("accent", 4),
                 width="100%",
             ),
@@ -67,8 +97,8 @@ class Chat(rx.ComponentState):
                 **props,
             ),
             spacing="0",
-            height="100%",
-            width="100%",
+            height=props.pop("height", "100%"),
+            width=props.pop("width", "100%"),
             align="start",
         )
 
@@ -98,8 +128,8 @@ class Chat(rx.ComponentState):
             return
 
         # Add the message to the list of messages.
-        self.messages2.append({"role": "user", "content": message})
-        self.messages2.append({"role": "assistant", "content": ""})
+        self.messages.append({"role": "user", "content": message})
+        self.messages.append({"role": "assistant", "content": ""})
         self.processing = True
         yield self.scroll_to_bottom()
         yield type(self).process_message
@@ -111,7 +141,7 @@ class Chat(rx.ComponentState):
         Returns:
             The last submitted user message.
         """
-        for message in reversed(self.messages2):
+        for message in reversed(self.messages):
             if message["role"] == "user":
                 return message["content"]
         return ""
@@ -122,70 +152,9 @@ class Chat(rx.ComponentState):
         Args:
             answer: The answer to add to the chat history.
         """
-        self.messages2[-1]["content"] += answer or ""
-
-
-def chat_bubble(message: str, idx: int = 0) -> rx.Component:
-    """Display a single chat bubble.
-
-    Args:
-        message: The message to display.
-
-    Returns:
-        A component displaying the message/answer pair.
-    """
-    return rx.cond(
-        message["role"] == "system",
-        rx.fragment(),
-        rx.box(
-            rx.markdown(
-                message["content"],
-                background_color=rx.cond(
-                    message["role"] == "user",
-                    rx.color("mauve", 4),
-                    rx.color("accent", 4),
-                ),
-                color=rx.cond(
-                    message["role"] == "user",
-                    rx.color("mauve", 12),
-                    rx.color("accent", 12),
-                ),
-                display="inline-block",
-                padding_x="1em",
-                border_radius="8px",
-                max_width=["30em", "30em", "50em", "50em", "50em", "50em"],
-            ),
-            id=f"message-{idx}",
-            text_align=rx.cond(message["role"] == "user", "right", "left"),
-            margin_top="1em",
-            width="100%",
-        ),
-    )
-
-
-def action_bar(State) -> rx.Component:
-    """The action bar to send a new message."""
-    return rx.form(
-        rx.hstack(
-            rx.input.root(
-                rx.input.input(
-                    placeholder="Type something...",
-                    id=State.__name__,
-                ),
-                width="100%",
-            ),
-            rx.spacer(),
-            rx.button(
-                "Send",
-                type="submit",
-            ),
-            align_items="center",
-            width="100%",
-        ),
-        width="100%",
-        on_submit=State.submit_message,
-        reset_on_submit=True,
-    )
+        self.messages[-1]["content"] += answer or ""
 
 
 chat = Chat.create
+
+chat()

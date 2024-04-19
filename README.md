@@ -10,6 +10,8 @@ pip install reflex-chat
 
 ## Usage
 
+See the `chat_demo` folder for an example app.
+
 ```python
 import reflex as rx
 from reflex_chat import chat, api
@@ -63,14 +65,52 @@ def index() -> rx.Component:
     )
 ```
 
-## API
+## Accessing the Chat State
 
-The chat component contains all the user interface and state needed for a chat interface. You can create multiple chat components on the same page.
+Once you create a chat component, you can access its state through the `chat.State` object.
 
+Get the messages from the chat state.
 
+```python
+chat1 = chat()
 
-- `processing` (bool): Whether the chat is processing a request.
-- `messages` (List[Dict[str, str]]): A list of messages in the chat in the format `{"role": str, "content": str}`.
-- `last_user_message` (str): The last message sent by the user.
-- `append_to_response` (Callable[[str], None]): 
+@rx.page()
+def index() -> rx.Component:
+    return rx.container(
+        # Get the messages through chat1.State.messages.
+        rx.text("Total Messages: ", chat1.State.messages.length()),
+        rx.hstack(
+            chat1,
+            height="100vh",
+        ),
+        # Get the processing state through chat1.State.processing.
+        background_color=rx.cond(chat1.State.processing, "gray", "white"),
+        size="4",
+    )
+```
 
+## Specifying your own process function
+
+You can specify your own `process` function that will be called every time the user submits a question on the chat box. The `process` function should be an async function that takes in the current chat state and yields after appending parts of the streamed response.
+
+The OpenAI `process` function is defined as below:
+
+```python
+async def process(chat: Chat):
+    # Start a new session to answer the question.
+    session = client.chat.completions.create(
+        model=model,
+        # Use chat.get_messages() to get the messages when processing.
+        messages=chat.get_messages(),
+        stream=True,
+    )
+
+    # Stream the results, yielding after every word.
+    for item in session:
+        delta = item.choices[0].delta.content
+        # Append to the last bot message (which defaults as an empty string).
+        chat.append_to_response(delta)
+        yield
+
+return process
+```

@@ -4,9 +4,22 @@ import os
 
 try:
     from openai import OpenAI
+
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 except ImportError:
     print("OpenAI is not installed. Please install it with `pip install openai`.")
+
+
+async def default_process(chat):
+    """Process the chat messages.
+
+    Args:
+        chat: The chat object.
+    """
+    chat.append_to_response(
+        "Pass the `process` argument to connect the chat to a model."
+    )
+    yield
 
 
 def openai(
@@ -18,11 +31,12 @@ def openai(
     Args:
         form_data: A dict with the current question.
     """
+
     async def process(chat):
         # Start a new session to answer the question.
         session = client.chat.completions.create(
             model=model,
-            messages=chat.messages,
+            messages=chat.get_messages(),
             stream=True,
         )
 
