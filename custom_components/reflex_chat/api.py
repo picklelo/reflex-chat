@@ -23,7 +23,7 @@ async def default_process(chat):
 
 
 def openai(
-    client=OpenAI(api_key=os.getenv("OPENAI_API_KEY")),
+    client=None,
     model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
 ):
     """Get the response from the API.
@@ -31,6 +31,7 @@ def openai(
     Args:
         form_data: A dict with the current question.
     """
+    client = client or OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     async def process(chat):
         # Start a new session to answer the question.
