@@ -2,13 +2,6 @@
 
 import os
 
-try:
-    from openai import OpenAI
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-except ImportError:
-    print("OpenAI is not installed. Please install it with `pip install openai`.")
-
 
 async def default_process(chat):
     """Process the chat messages.
@@ -31,6 +24,7 @@ def openai(
     Args:
         form_data: A dict with the current question.
     """
+    from openai import OpenAI
     client = client or OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     async def process(chat):

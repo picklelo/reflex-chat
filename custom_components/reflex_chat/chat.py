@@ -157,4 +157,4 @@ class Chat(rx.ComponentState):
 
 chat = Chat.create
 
-chat()
+c1 = chat()

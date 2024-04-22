@@ -79,6 +79,8 @@ def index() -> rx.Component:
     return rx.container(
         # Get the messages through chat1.State.messages.
         rx.text("Total Messages: ", chat1.State.messages.length()),
+        # Get the last user message through chat1.State.last_user_message.
+        rx.text(chat1.State.last_user_message),
         rx.hstack(
             chat1,
             height="100vh",
