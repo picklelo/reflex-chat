@@ -27,18 +27,17 @@ def openai(
     from openai import OpenAI
     client = client or OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    async def process(chat):
+    async def process(messages: list[dict[str, str]]):
         # Start a new session to answer the question.
         session = client.chat.completions.create(
             model=model,
-            messages=chat.get_messages(),
+            messages=messages,
             stream=True,
         )
 
         # Stream the results, yielding after every word.
         for item in session:
             delta = item.choices[0].delta.content
-            chat.append_to_response(delta)
-            yield
+            yield delta
 
     return process

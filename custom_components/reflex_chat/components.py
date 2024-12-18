@@ -43,11 +43,9 @@ def action_bar(ChatState) -> rx.Component:
     """The action bar to send a new message."""
     return rx.form(
         rx.hstack(
-            rx.input.root(
-                rx.input.input(
-                    placeholder="Type something...",
-                    id=ChatState.__name__,
-                ),
+            rx.input(
+                placeholder="Type something...",
+                id=ChatState.__name__,
                 width="100%",
             ),
             rx.spacer(),
