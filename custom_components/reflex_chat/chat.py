@@ -1,30 +1,32 @@
 """A custom component for a chat interface."""
 from __future__ import annotations
 
-from typing import Callable, Generator, Type
+from typing import Any, Callable, Generator, Type, ClassVar
 
 import reflex as rx
-from .api import default_process
-from .components import chat_bubble, action_bar
 
+from .api import default_process
+from .components import action_bar, chat_bubble
+
+print("hi")
 
 class Chat(rx.ComponentState):
     """A chat component with state."""
 
     # The full chat history, in the OpenAI format.
-    messages: list[dict[str, str]] = []
+    messages: ClassVar[rx.Var[list[dict[str, str]]]] = []
 
     # Whether we are processing a message.
     processing: bool = False
 
-    def get_messages(self) -> list[dict[str, str]]:
+    async def get_messages(self) -> list[dict[str, Any]]:
         """Return the chat history including the last submitted user message.
 
         Returns:
             The chat history as a list of dictionaries.
         """
         # Convert to a list before sending.
-        return self.get_value(self.messages)
+        return await self.get_var_value(self.messages)
 
     @classmethod
     def get_id(cls):
@@ -33,7 +35,8 @@ class Chat(rx.ComponentState):
     @classmethod
     def create(
         cls,
-        initial_messages: list[dict[str, str]] | None = None,
+        messages: rx.Var[list[dict[str, str]]],
+        on_submit: Callable | None = None,
         process: Callable[[Chat], Generator] | None = default_process,
         logo: rx.Component | None = rx.logo(),
         chat_bubble: Callable[[Type[Chat]], rx.Component] | None = chat_bubble,
@@ -52,11 +55,9 @@ class Chat(rx.ComponentState):
         Returns:
             A chat component.
         """
-        # Set the initial value of the State var.
-        if initial_messages is not None:
-            # Update the pydantic model to use the initial value as default.
-            cls.__fields__["messages"].default = initial_messages
         return super().create(
+            messages=messages,
+            on_submit=on_submit,
             process=process,
             logo=logo,
             chat_bubble=chat_bubble,
@@ -66,7 +67,9 @@ class Chat(rx.ComponentState):
 
     @classmethod
     def get_component(cls, **props) -> rx.Component:
-        cls.process = props.pop("process", default_process)
+        cls.process = staticmethod(props.pop("process", default_process))
+        cls.on_submit = props.pop("on_submit", lambda _: rx.fragment())
+        cls.messages = props.pop("messages")
         chat_bubble = props.pop("chat_bubble", lambda message, i: rx.fragment())
         action_bar = props.pop("action_bar", lambda _: rx.fragment())
 
@@ -110,16 +113,25 @@ class Chat(rx.ComponentState):
 """
         )
 
-    async def process_message(self):
-        async for value in self.process():
-            yield value
+    @rx.event(background=True)
+    async def process_message(self, message: str):
+        async with self:
+            self.processing = True
+            messages = await self.get_messages()
+            messages.append({"role": "user", "content": message})
+            messages.append({"role": "assistant", "content": ""})
+            yield
 
-        self.processing = False
+        async for value in self.process(messages):
+            await self.append_to_response(value)
+
+        async with self:
+            self.processing = False
 
         # Scroll to the last message.
-        yield self.scroll_to_bottom()
+        # yield self.scroll_to_bottom()
 
-    def submit_message(self, form_data: dict[str, str]):
+    async def submit_message(self, form_data: dict[str, str]):
         # Get the message from the form
         message = form_data[self.__class__.__name__]
 
@@ -128,33 +140,19 @@ class Chat(rx.ComponentState):
             return
 
         # Add the message to the list of messages.
-        self.messages.append({"role": "user", "content": message})
-        self.messages.append({"role": "assistant", "content": ""})
-        self.processing = True
-        yield self.scroll_to_bottom()
-        yield type(self).process_message
+        yield type(self).on_submit(self.get_id(), message)
+        # yield self.scroll_to_bottom()
+        yield type(self).process_message(message)
 
-    @rx.var
-    def last_user_message(self) -> str:
-        """Return the last submitted user message.
-
-        Returns:
-            The last submitted user message.
-        """
-        for message in reversed(self.messages):
-            if message["role"] == "user":
-                return message["content"]
-        return ""
-
-    def append_to_response(self, answer: str):
+    async def append_to_response(self, answer: str):
         """Append to the last answer in the chat history.
 
         Args:
             answer: The answer to add to the chat history.
         """
-        self.messages[-1]["content"] += answer or ""
+        async with self:
+            messages = await self.get_var_value(self.messages)
+            messages[-1]["content"] += answer or ""
 
 
 chat = Chat.create
-
-c1 = chat()

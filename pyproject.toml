@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-chat"
-version = "0.0.2a1"
-description = "Reflex custom component chat"
+version = "0.0.2"
+description = "A custom chat component that can be hooked up to any model."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8"
 authors = [{ name = "Nikhil Rao", email = "nikhil@reflex.dev" }]
-keywords = ["reflex","reflex-custom-components"]
+keywords = ["reflex", "reflex-custom-components", "chat", "llm"]
 
 dependencies = ["reflex>=0.4.7"]
 
@@ -22,6 +22,7 @@ source = "https://github.com/picklelo/reflex-chat"
 
 [project.optional-dependencies]
 dev = ["build", "twine"]
+
 
 
 [tool.setuptools.packages.find]
